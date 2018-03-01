@@ -1,7 +1,7 @@
 #-*-encoding:utf8-*-
 
 '''
-
+< 프로그램 루틴 >
 
 1. 키워드로 검색해서 검색 결과 개수를 얻는다. (func get_page_num)
 1-1. 결과를 토대로 읽을 페이지 개수를 계산한다.
@@ -25,10 +25,10 @@ from selenium import webdriver
 header = {'user-agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'}
 finish_id_list = [] # :: 이미 검색이 끝난 블로그의 ID
 blogger_list = [] # :: blogger 객체 리스트
-sleeping_time = 0.2 # :: 크롤링 시간 간격 (초 단위)
+sleeping_time = 2 # :: 크롤링 시간 간격 (초 단위)
 driver_dir = './chromedriver.exe'
 
-'''
+''' 
 ********* 클래스 정의 *********
 '''
 
@@ -36,11 +36,12 @@ class Blogger:
     def __init__(self, id, today=0):
         self.id = id
         self.today = today
+
     def __str__(self):
         return ("ID : " + self.id + " / Today : " + str(self.today))
 
-'''
-********** 함수 정의 **********
+''' 
+********** 함수 정의 ********** 
 '''
 
 # 검색 키워드로 검색 결과 개수를 받아와서, 읽을 페이지 개수를 리턴.
@@ -86,7 +87,9 @@ def get_id(url):
         return url.split('/')[3].split('?')[0]
 
 # 해당 ID의 블로그 방문, 투데이 추출
+
 def get_today(driver, id):
+    global idx
     # 이미 조회한 ID가 아니라면,
     if not id in finish_id_list:
         url = "https://m.blog.naver.com/PostList.nhn?blogId=" + str(id)
@@ -101,7 +104,8 @@ def get_today(driver, id):
 
         # 조회한 ID 저장
         finish_id_list.append(id)
-
+        print(">>>",idx,'번째 추출 -> ID: ',id , ', TODAY: ',today)
+        idx += 1
         return Blogger(id, today)
 
     else:
@@ -113,22 +117,23 @@ def print_time(start_time):
     print("[INFO] 누적 실행 시간 : " + str(round(now_time - start_time, 4)) + "sec")
 
 
+''' 
+********** main 정의 ********** 
 '''
-********** main 정의 **********
-'''
-
 if __name__ == "__main__":
     keyword = parse.quote(input("검색할 키워드 : "))
     start_time = time.time()
 
-    # 1. 페이지 수 계산
+    # 1. 페이지 수 계산 (네이버에서는 100페이지까지만 가능)
     pages = get_page_num(keyword)
+    if pages>=100:
+        pages = 100
     print("[INFO] 검색할 페이지 수 : " + str(pages))
     print_time(start_time)
 
     # 2. html 파싱
     driver = webdriver.Chrome(driver_dir)
-
+    idx = 1
     for page in range(1, pages+1):
         print("[INFO] 현재 페이지 : " + str(page) + "/" + str(pages))
         urls = get_url(get_bs(keyword, page))
@@ -138,7 +143,6 @@ if __name__ == "__main__":
             if id is not None:
                 try:
                     blogger_list.append(get_today(driver, id))
-                    print(id)
                     time.sleep(sleeping_time) # 크롤링 간격
                 except:
                     print("[ERROR] 수집 실패, ID : " + id)
