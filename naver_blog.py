@@ -20,12 +20,10 @@ import time
 from urllib import parse
 from bs4 import BeautifulSoup
 from selenium import webdriver
-
 # 전역 변수
-header = {'user-agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'}
+header = {'user-agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3239.132 Safari/537.36'}
 finish_id_list = [] # :: 이미 검색이 끝난 블로그의 ID
 blogger_list = [] # :: blogger 객체 리스트
-sleeping_time = 2 # :: 크롤링 시간 간격 (초 단위)
 driver_dir = './chromedriver.exe'
 
 ''' 
@@ -49,8 +47,8 @@ def get_page_num(keyword):
     url = "https://search.naver.com/search.naver?where=post&query=" + str(keyword)
     html = requests.get(url, headers=header).text
     bs = BeautifulSoup(html, 'html.parser')
+    #temp = bs.find('div',class_='blog section _blogBase').get_text()
     temp = bs.select('#main_pack > div.blog.section._blogBase > div > span')[0].getText()
-
     number = int(temp.split(' / ')[1].replace(',', '').replace('건', ''))
 
     if number%10 == 0:
@@ -94,6 +92,7 @@ def get_today(driver, id):
     if not id in finish_id_list:
         url = "https://m.blog.naver.com/PostList.nhn?blogId=" + str(id)
         driver.get(url)
+        time.sleep(sleeping_time)  # 크롤링 간격
         html = driver.page_source
         bs = BeautifulSoup(html, 'html.parser')
         today_str = str(bs.select('#rego_cover > div.cover_cont > div.tit_area > div.count')[0]).replace(',', '')
@@ -105,6 +104,8 @@ def get_today(driver, id):
         # 조회한 ID 저장
         finish_id_list.append(id)
         print(">>>",idx,'번째 추출 -> ID: ',id , ', TODAY: ',today)
+        with open('data.txt','a') as f:
+            f.write(str(id)+','+str(today)+'\n')
         idx += 1
         return Blogger(id, today)
 
@@ -122,14 +123,20 @@ def print_time(start_time):
 '''
 if __name__ == "__main__":
     keyword = parse.quote(input("검색할 키워드 : "))
+    print(keyword)
     start_time = time.time()
-
+    sleeping_time = 2  # :: 크롤링 시간 간격 (초 단위)
     # 1. 페이지 수 계산 (네이버에서는 100페이지까지만 가능)
     pages = get_page_num(keyword)
     if pages>=100:
         pages = 100
-    print("[INFO] 검색할 페이지 수 : " + str(pages))
-    print_time(start_time)
+
+
+    print("[INFO] 검색가능 페이지 수 : " + str(pages))
+    # 의뢰추가부분으로 page, delay설정부분
+    pages = int(input(">>> 몇페이지 까지 추출할까요 (기본 100) :: "))
+    sleeping_time = int(input(">>> 추출 딜레이 ( 기본 2초) ::  "))
+    #print_time(start_time)
 
     # 2. html 파싱
     driver = webdriver.Chrome(driver_dir)
@@ -141,11 +148,10 @@ if __name__ == "__main__":
         for url in urls:
             id = get_id(url)
             if id is not None:
-                try:
-                    blogger_list.append(get_today(driver, id))
-                    time.sleep(sleeping_time) # 크롤링 간격
-                except:
-                    print("[ERROR] 수집 실패, ID : " + id)
+                #try:
+                blogger_list.append(get_today(driver, id))
+                #except:
+                    #print("[ERROR] 수집 실패, ID : " + id)
 
         print_time(start_time)
 
@@ -156,6 +162,9 @@ if __name__ == "__main__":
     blogger_list = filter(None, blogger_list)
     print_time(start_time)
 
+    """결과 출력필요시 주석제거
     print("***** 결과 *****")
     for blogger in blogger_list:
         print(blogger)
+    """
+    input()
